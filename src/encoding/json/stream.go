@@ -157,6 +157,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 		return enc.err
 	}
 	e := newEncodeState()
+	e.w = enc.w
 	err := e.marshal(v)
 	if err != nil {
 		return err
@@ -170,7 +171,8 @@ func (enc *Encoder) Encode(v interface{}) error {
 	// digits coming.
 	e.WriteByte('\n')
 
-	if _, err = enc.w.Write(e.Bytes()); err != nil {
+	// @ydnar: Flush any bytes remaining.
+	if err = e.flush(true); err != nil {
 		enc.err = err
 	}
 	encodeStatePool.Put(e)
