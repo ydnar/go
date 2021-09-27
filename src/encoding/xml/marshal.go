@@ -150,7 +150,7 @@ func NewEncoder(w io.Writer) *Encoder {
 func (enc *Encoder) Indent(prefix, indent string) {
 	enc.p.prefix = prefix
 	enc.p.indent = indent
-	enc.p.minimalIndent = prefix == "" && indent == "" //Empty values are still indented
+	enc.p.minIndent = prefix == "" && indent == "" //Empty values are still indented
 }
 
 // Encode writes the XML encoding of v to the stream.
@@ -303,18 +303,18 @@ func (enc *Encoder) Flush() error {
 
 type printer struct {
 	*bufio.Writer
-	encoder       *Encoder
-	seq           int
-	indent        string // line identation
-	prefix        string // line prefix
-	depth         int
-	indentedIn    bool
-	putNewline    bool
-	minimalIndent bool              // new line even with empty prefix and indent
-	attrNS        map[string]string // map prefix -> name space
-	attrPrefix    map[string]string // map name space -> prefix
-	prefixes      []string
-	tags          []Name
+	encoder    *Encoder
+	seq        int
+	indent     string // line identation
+	prefix     string // line prefix
+	depth      int
+	indentedIn bool
+	putNewline bool
+	minIndent  bool              // new line even with empty prefix and indent
+	attrNS     map[string]string // map prefix -> name space
+	attrPrefix map[string]string // map name space -> prefix
+	prefixes   []string
+	tags       []Name
 }
 
 // createAttrPrefix finds the name space prefix attribute to use for the given name space,
@@ -1062,7 +1062,7 @@ func (p *printer) writeIndent(depthDelta int) {
 		}
 		p.indentedIn = false
 	}
-	if p.putNewline && (len(p.indent) > 0 || len(p.prefix) > 0 || p.minimalIndent) {
+	if p.putNewline && (len(p.indent) > 0 || len(p.prefix) > 0 || p.minIndent) {
 		p.WriteByte('\n')
 	} else {
 		p.putNewline = true
