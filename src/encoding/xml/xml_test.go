@@ -888,7 +888,6 @@ func TestIssue8535(t *testing.T) {
 	}
 }
 
-
 func TestIssue11431(t *testing.T) { //
 
 	type Test struct {
@@ -948,7 +947,6 @@ func TestIssue11431XMLName(t *testing.T) { //
 	}
 }
 
-
 func TestIssue11431UsingAttr(t *testing.T) { //
 
 	type T struct {
@@ -973,9 +971,9 @@ func TestIssue11431UsingAttr(t *testing.T) { //
 func TestIssue11496(t *testing.T) { // Issue answered
 
 	type Person struct {
-		XMLName Name `xml:"ns1 person"`
-		Name    string   `xml:"name"`
-		Phone   string   `xml:"ns2 phone,omitempty"`
+		XMLName Name   `xml:"ns1 person"`
+		Name    string `xml:"name"`
+		Phone   string `xml:"ns2 phone,omitempty"`
 	}
 
 	p := &Person{
@@ -1012,7 +1010,7 @@ func TestIssue8068(t *testing.T) {
 	testCases := []struct {
 		s  string
 		ok bool
-	}{	// Empty prefixed namespace is not allowed
+	}{ // Empty prefixed namespace is not allowed
 		{`<foo xmlns:bar="a"></foo>`, true},
 		{`<foo xmlns:bar=""></foo>`, false},
 		{`<foo xmlns:="a"></foo>`, false},
@@ -1020,7 +1018,7 @@ func TestIssue8068(t *testing.T) {
 		{`<foo xmlns:"a"></foo>`, false},
 	}
 
-	var dest string	// type does not matter as tested tags are empty
+	var dest string // type does not matter as tested tags are empty
 	var err error
 	for _, tc := range testCases {
 		err = Unmarshal([]byte(tc.s), &dest)
@@ -1055,27 +1053,27 @@ func TestIssue10538(t *testing.T) {
 	}
 
 	type svgstrEmptyStruct struct {
-		elementNoXMLName //is not exported and empty
-		Height string `xml:"height,attr,omitempty"`
-		Width  string `xml:"width,attr,omitempty"`
+		elementNoXMLName        //is not exported and empty
+		Height           string `xml:"height,attr,omitempty"`
+		Width            string `xml:"width,attr,omitempty"`
 	}
 
 	type svgstr struct {
-		element // not exported and .Value panics
-		Height string `xml:"height,attr,omitempty"`
-		Width  string `xml:"width,attr,omitempty"`
+		element        // not exported and .Value panics
+		Height  string `xml:"height,attr,omitempty"`
+		Width   string `xml:"width,attr,omitempty"`
 	}
 
 	type svgstrExp struct {
 		Element element // exported and .Value does not panic
-		Height string `xml:"height,attr,omitempty"`
-		Width  string `xml:"width,attr,omitempty"`
+		Height  string  `xml:"height,attr,omitempty"`
+		Width   string  `xml:"width,attr,omitempty"`
 	}
 
 	type svgstrExpType struct {
-		Element // exported and .Value does not panic
-		Height string `xml:"height,attr,omitempty"`
-		Width  string `xml:"width,attr,omitempty"`
+		Element        // exported and .Value does not panic
+		Height  string `xml:"height,attr,omitempty"`
+		Width   string `xml:"width,attr,omitempty"`
 	}
 
 	type svgstr2 struct {
@@ -1330,8 +1328,8 @@ func TestIssue20685(t *testing.T) {
 func TestIssue16497(t *testing.T) {
 
 	type IQ struct {
-		Type    string   `xml:"type,attr"`
-		XMLName Name `xml:"iq"`
+		Type    string `xml:"type,attr"`
+		XMLName Name   `xml:"iq"`
 	}
 
 	type embedIQ struct {
