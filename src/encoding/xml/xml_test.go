@@ -208,7 +208,7 @@ var cookedTokens = []Token{
 	CharData("\n  "),
 	EndElement{Name{"ns3", "name"}},
 	CharData("\n"),
-	EndElement{Name{"", "body"}}, // ns2 is not the default namespace and token should be empty
+	EndElement{Name{"ns2", "body"}},
 	Comment(" missing final newline "),
 }
 
@@ -599,7 +599,7 @@ func TestIssue569(t *testing.T) {
 
 func TestUnquotedAttrs(t *testing.T) {
 	attrValue := "azAZ09:-_\t"
-	data := "<tag attr="+attrValue+">"
+	data := "<tag attr=" + attrValue + ">"
 	d := NewDecoder(strings.NewReader(data))
 	d.Strict = false
 	token, err := d.Token()
@@ -611,7 +611,7 @@ func TestUnquotedAttrs(t *testing.T) {
 	}
 	attr := token.(StartElement).Attr[0]
 	if attr.Value != attrValue {
-		t.Errorf("Unexpected attribute value: got %s want %s", attr.Value,attrValue)
+		t.Errorf("Unexpected attribute value: got %s want %s", attr.Value, attrValue)
 	}
 	if attr.Name.Local != "attr" {
 		t.Errorf("Unexpected attribute name: %v", attr.Name.Local)
@@ -892,9 +892,9 @@ func TestIssue8535(t *testing.T) {
 func TestIssue11431(t *testing.T) { //
 
 	type Test struct {
-		XMLName Name `xml:"Test"`
-		Ns   string `xml:"xmlns,attr"`
-		Body string
+		XMLName Name   `xml:"Test"`
+		Ns      string `xml:"xmlns,attr"`
+		Body    string
 	}
 
 	s := &Test{Ns: "http://example.com/ns", Body: "hello world"}
@@ -953,7 +953,7 @@ func TestIssue11431UsingAttr(t *testing.T) { //
 
 	type T struct {
 		Ns   string `xml:"xmlns,attr"`
-		Body    string
+		Body string
 	}
 
 	//s := &Test{XMLName: Name{"http://example.com/ns",""}, Body: "hello world"} is unusable as the "-" is missing
@@ -985,12 +985,12 @@ func TestIssue11496(t *testing.T) { // Issue answered
 
 	raw, err := MarshalIndent(p, "", "  ")
 	if err != nil {
-		fmt.Errorf("namespace assignment : marshal error returned is %s",err)
+		fmt.Errorf("namespace assignment : marshal error returned is %s", err)
 	}
 
 	result := `<person xmlns="ns1">\n\t<name>Oliver</name>\n\t<phone xmlns="ns2">110</phone>\n</person>"`
 	if string(raw) != result {
-		fmt.Errorf("namespace assignment : got %s, want %s",string(raw),result)
+		fmt.Errorf("namespace assignment : got %s, want %s", string(raw), result)
 	}
 
 	// Output:
@@ -1101,9 +1101,9 @@ func TestIssue10538(t *testing.T) {
 	/* XMLName in a unexported field is not assigned */
 	result = `<svgstr height="200" width="400"></svgstr>`
 	s := svgstr{
-		element: element{XMLName: Name{Local: "svg", Space: "www.etc"},Children:nil},
-		Width:  "400",
-		Height: "200",
+		element: element{XMLName: Name{Local: "svg", Space: "www.etc"}, Children: nil},
+		Width:   "400",
+		Height:  "200",
 	}
 
 	f, err := Marshal(s)
@@ -1116,9 +1116,9 @@ func TestIssue10538(t *testing.T) {
 	/* Embedding the XMLName gets it assigned to the inner struct */
 	result = `<svgstrExp height="200" width="400"><svg xmlns="www.etc"></svg></svgstrExp>`
 	sExp := svgstrExp{
-		Element: element{XMLName: Name{Local: "svg", Space: "www.etc"},Children:nil},
-		Width:  "400",
-		Height: "200",
+		Element: element{XMLName: Name{Local: "svg", Space: "www.etc"}, Children: nil},
+		Width:   "400",
+		Height:  "200",
 	}
 
 	b, err := Marshal(sExp)
@@ -1131,9 +1131,9 @@ func TestIssue10538(t *testing.T) {
 	/* XMLName is not assigned to outer tag but to inner tag. Not working due to other issues */
 	result = `<svgstrExpType height="200" width="400"><Children></Children></svgstrExpType>`
 	sExpType := svgstrExpType{
-		Element: Element{XMLName: Name{Local: "svg", Space: "www.etc"},Children:[]interface{}{""}},
-		Width:  "400",
-		Height: "200",
+		Element: Element{XMLName: Name{Local: "svg", Space: "www.etc"}, Children: []interface{}{""}},
+		Width:   "400",
+		Height:  "200",
 	}
 
 	d, err := Marshal(sExpType)
@@ -1162,7 +1162,7 @@ func TestIssue10538(t *testing.T) {
 
 func TestIssue7535(t *testing.T) {
 	source := `<ex:element xmlns:ex="http://example.com/schema"></ex:element>`
-	result := `<element xmlns:ex="http://example.com/schema"></element>`
+	result := `<ex:element xmlns:ex="http://example.com/schema"></ex:element>`
 	// A prefix is the namespace known from the tag where it is declared and not the default namespace.
 	// But in a well-formed xml, it is useless as the prefix is bound and recorded as an attribute
 	in := strings.NewReader(source)
@@ -1184,6 +1184,8 @@ func TestIssue7535(t *testing.T) {
 					return
 				}
 			} else { // err is nil
+				// end token contains now the URL which can be encoded only if the NS if available
+				// from the start token
 				err = e.EncodeToken(token)
 				if err != nil {
 					t.Errorf("encode token failed : %s", err)
@@ -1261,7 +1263,7 @@ func TestIssue20396(t *testing.T) {
 	testCases := []struct {
 		s  string
 		ok bool
-	}{  //Should not allow to change namespace of opening tag
+	}{ // Should not allow to change namespace of opening tag
 		{`<a:te:st xmlns:a="abcd"/>`, false},
 		{`<a:te=st xmlns:a="abcd"/>`, false},
 		{`<a:te&st xmlns:a="abcd"/>`, false},
@@ -1273,7 +1275,7 @@ func TestIssue20396(t *testing.T) {
 		for {
 			_, err = d.Token()
 			if err != nil {
-				if err == io.EOF {//EOF indicates that process is complete
+				if err == io.EOF { //EOF indicates that process is complete
 					err = nil
 				}
 				break
@@ -1353,6 +1355,40 @@ func TestIssue16497(t *testing.T) {
 	if err != nil {
 		fmt.Errorf("unmarshal anonymous struct failed with %s", err)
 		return
+	}
+}
+
+func TestIssue9519(t *testing.T) {
+	// Expects prefixed notation prefix:tag name iso xmlns:
+	type HouseType struct {
+		XMLName   Name   `xml:"prefix11 House"`
+		MessageId string `xml:"message_id,attr"`
+	}
+
+	var tm HouseType
+	var err error
+
+	tm.MessageId = "test1234"
+
+	var data1 []byte
+	data1, err = Marshal(tm)
+	if err != nil {
+		t.Errorf("%s : handling namespace : got error %v, want no fail \n", data1, err)
+	}
+
+	result := `<House xmlns="prefix11" message_id="` + tm.MessageId + `"></House>`
+	if string(data1) != result {
+		t.Errorf("handling namespace : got %v, want %s \n", string(data1), result)
+	}
+
+	var tm2 HouseType
+	err = Unmarshal([]byte(data1), &tm2)
+	if err != nil {
+		t.Errorf("%s : handling namespace : got error %v, want no fail \n", data1, err)
+	}
+
+	if tm.MessageId != tm2.MessageId {
+		t.Errorf("handling namespace : got %s, want %s \n", tm.MessageId, tm2.MessageId)
 	}
 }
 
@@ -1544,41 +1580,47 @@ func TestIssue7113(t *testing.T) {
 	var a A
 	structSpace := "b"
 	fieldSpace := ""
-	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns="` + fieldSpace + `"></C></A>`
-	err := Unmarshal([]byte(xmlTest), &a)
-	if err != nil {
-		t.Errorf("overidding with empty namespace: expected no error, got %s", err)
+	xmlTests := []string{
+		`<A xmlns="` + structSpace + `"><C xmlns="` + fieldSpace + `"></C></A>`,
+		// `<A><C></C></A>`,
 	}
-	if a.XMLName.Space != structSpace {
-		t.Errorf("overidding with empty namespace: before marshaling, got %s != %s, want == \n", a.XMLName.Space, structSpace)
-	}
-	if a.C.XMLName.Space != fieldSpace {
-		t.Errorf("overidding with empty namespace: before marshaling, got %s != %s, want == \n", a.C.XMLName.Space, fieldSpace)
-	}
+	for _, xmltest := range xmlTests {
 
-	var b []byte
-	/* Because of unmarshaling, namespaces are already assigned */
-	b, err = Marshal(&a)
-	if string(b) != xmlTest {
-		t.Errorf("overidding with empty namespace: after marshaling, got %s != %s, want == \n", string(b), xmlTest)
-		return
-	}
-	// Unmarshaling has no interest if the previous test succeed as the structs are initially empty unless
-	if a.C.XMLName.Local != "C" {
-		t.Errorf("overidding with empty namespace: after marshaling, unmarshaling will fail, got %s as C tag space which should be tag name C \n", a.C.XMLName.Local)
-	}
-	if a.C.XMLName.Space != "" {
-		t.Errorf("overidding with empty namespace: after marshaling, unmarshaling will fail, got %s in C tag which should be empty \n", a.C.XMLName.Space)
-	}
-	err = Unmarshal(b, &a)
-	if err != nil {
-		t.Errorf("overidding with empty namespace: expected no error, got %s", err)
-	}
-	if a.XMLName.Space != "b" {
-		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, got %s in XMLName != %s, want == \n", a.XMLName.Space, "b")
-	}
-	if a.C.XMLName.Space != "" {
-		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, got %q in C tag != %q, want == \n", a.C.XMLName.Space, "")
+		err := Unmarshal([]byte(xmltest), &a)
+		if err != nil {
+			t.Errorf("overidding with empty namespace: expected no error, got %s", err)
+		}
+		if a.XMLName.Space != structSpace {
+			t.Errorf("overidding with empty namespace: before marshaling, got %s != %s, want == \n", a.XMLName.Space, structSpace)
+		}
+		if a.C.XMLName.Space != fieldSpace {
+			t.Errorf("overidding with empty namespace: before marshaling, got %s != %s, want == \n", a.C.XMLName.Space, fieldSpace)
+		}
+
+		var b []byte
+		/* Because of unmarshaling, namespaces are already assigned */
+		b, err = Marshal(&a)
+		if string(b) != xmltest {
+			t.Errorf("overidding with empty namespace: after marshaling, got %s != %s, want == \n", string(b), xmltest)
+			return
+		}
+		// Unmarshaling has no interest if the previous test succeed as the structs are initially empty unless
+		if a.C.XMLName.Local != "C" {
+			t.Errorf("overidding with empty namespace: after marshaling, unmarshaling will fail, got %s as C tag space which should be tag name C \n", a.C.XMLName.Local)
+		}
+		if a.C.XMLName.Space != "" {
+			t.Errorf("overidding with empty namespace: after marshaling, unmarshaling will fail, got %s in C tag which should be empty \n", a.C.XMLName.Space)
+		}
+		err = Unmarshal(b, &a)
+		if err != nil {
+			t.Errorf("overidding with empty namespace: expected no error, got %s", err)
+		}
+		if a.XMLName.Space != "b" {
+			t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, got %s in XMLName != %s, want == \n", a.XMLName.Space, "b")
+		}
+		if a.C.XMLName.Space != "" {
+			t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, got %q in C tag != %q, want == \n", a.C.XMLName.Space, "")
+		}
 	}
 }
 

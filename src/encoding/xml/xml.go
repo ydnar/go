@@ -343,7 +343,6 @@ func (d *Decoder) Token() (Token, error) {
 		if !d.popElement(&t1) { // Popping the element with its eventual prefix for appropriate comparison
 			return nil, d.err
 		}
-		d.translate(&t1.Name, true)
 		t = t1
 	}
 	return t, err
@@ -512,9 +511,12 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		return false
 	case s.name.Space != name.Space:
 		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-			"closed by </" + name.Local + "> in space " + name.Space)
+			" closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
+
+	// translating before removal of ns
+	d.translate(&t.Name, true) // returning a namespace and not its prefix as doc says
 
 	// Pop stack until a Start or EOF is on the top, undoing the
 	// translations that were associated with the element we just closed.

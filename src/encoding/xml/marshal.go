@@ -305,8 +305,8 @@ type printer struct {
 	*bufio.Writer
 	encoder       *Encoder
 	seq           int
-	indent        string
-	prefix        string
+	indent        string // line identation
+	prefix        string // line prefix
 	depth         int
 	indentedIn    bool
 	putNewline    bool
@@ -366,7 +366,7 @@ func (p *printer) createAttrPrefix(url string) string {
 
 	p.attrPrefix[url] = prefix
 	p.attrNS[prefix] = url
-
+	/* prints a prefix definition for the URL which had no prefix */
 	p.WriteString(`xmlns:`)
 	p.WriteString(prefix)
 	p.WriteString(`="`)
@@ -384,7 +384,9 @@ func (p *printer) deleteAttrPrefix(prefix string) {
 	delete(p.attrNS, prefix)
 }
 
-func (p *printer) markPrefix() { // This is why prefix are never showing
+// p.prefixes contains prefixes separated by the empty string between tags
+// as several prefixes can be defined at any level
+func (p *printer) markPrefix() {
 	p.prefixes = append(p.prefixes, "")
 }
 
@@ -393,10 +395,33 @@ func (p *printer) popPrefix() {
 		prefix := p.prefixes[len(p.prefixes)-1]
 		p.prefixes = p.prefixes[:len(p.prefixes)-1]
 		if prefix == "" {
-			break
+			break // end of tag is reached
 		}
 		p.deleteAttrPrefix(prefix)
 	}
+}
+// No prefix is returned if the first prefix of the list for this tag is not assigned to a namespace
+func (p *printer) tagPrefix() string {
+	prefix := p.prefixes[len(p.prefixes)-1] // last prefix relates to current tag
+	i := len(p.prefixes) - 1
+	for i >= 0 && i < len(p.prefixes){
+		if prefix == "" { // end of list of prefixes for this tag is reached
+			// check that previous prefix is the one of the tag
+			if i+1 < len(p.prefixes) { // list is not empty
+				if p.attrNS[p.prefixes[i+1]] != "" {
+					// prefix has been created, i.e. no prefix for the tag
+					return ""
+				} else {
+					return p.prefixes[i+1]
+				}
+			} else {
+				return ""
+			}
+		}
+		i--
+		prefix = p.prefixes[i]
+	}
+	return ""
 }
 
 var (
@@ -713,52 +738,69 @@ func (p *printer) writeStart(start *StartElement) error {
 		return fmt.Errorf("xml: start tag with no name")
 	}
 
-	// pushes the value of the namespace and not the eventual prefix
+	// Pushes the value (url) of the namespace and not the eventual prefix
 	p.tags = append(p.tags, start.Name)
-	p.markPrefix() // pushes an empty prefix
+	p.markPrefix() // pushes an empty prefix to allow pop to locate the end of any prefix
 
-	p.writeIndent(1) // Handling relative depth of a tag
+	p.writeIndent(1) // handling relative depth of a tag
 	p.WriteByte('<')
-	p.WriteString(start.Name.Local) // if prefix exists, it is not printed
 	/* The attribute was not added if no XMLName field existed. */
+	var tagSpaceAttr Attr       // the attribute will not be printed to avoid repetition
 	if start.Name.Space != "" { // tag starts with <.Space:.Local
-		// The tag prefix is not the default name space and it is a mistake to print it if not bound by an attribute.
-		// But this is used in some cases which are unrelated to XML standards. Invalid XML can then be produced.
-		dontPrintTagSpace := false
+		// Locate an eventual prefix. If none, the XML is <tag name and no short notation is used.
+		prefixToPrint := ""
 		for _, attr := range start.Attr {
-			// Name.Space only contains a namespace xmlns=".Space" or a .Value xmlns:(unavailable)=.Space
+			// tag .Space only contains a namespace URL and the prefix is unavailable
+			// (xmlns:(unavailable)=.Space)
 			// Attributes values which are namespaces are searched to avoid reprinting the domain
-			dontPrintTagSpace = (start.Name.Space == attr.Value && attr.Name.Space == xmlnsPrefix && attr.Name.Local != "") ||
-				(attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix && attr.Value == start.Name.Space)
-			if dontPrintTagSpace {
-				if attr.Name.Space == xmlnsPrefix {
-					p.tags[len(p.tags)-1].Space = attr.Name.Local // Overriding with prefix
-				}
-				break
+			// The first attribute with a value == to start tag token will be the prefix used
+			// Print the space definition if the prefix is used
+			if start.Name.Space == attr.Value && attr.Name.Space == xmlnsPrefix && attr.Name.Local != "" {
+				// this is not enough if you return End tag with url in space and not the prefix
+				prefixToPrint = attr.Name.Local                // if you skip printing, the value of the prefix does not display
+				p.prefixes = append(p.prefixes, prefixToPrint) // xmlns(.Space):(.Local)=(.Value)
+				break                                          // the first prefix found is used
 			}
 		}
-		if !dontPrintTagSpace {
-			p.WriteString(` xmlns="`)
+		if prefixToPrint == "" { // no prefix was found for the space of the tag name
+		// the tag name Space is then considered as the default xmlns=".Space"
+			for _, attr := range start.Attr {
+				// attributes values which are namespaces are searched to avoid reprinting the default
+				if start.Name.Space == attr.Value && attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix {
+					tagSpaceAttr = attr
+				}
+				break // the first attribute which is a default declaration that matches is kept
+			}
+		}
+		if prefixToPrint != "" {
+			// print the prefix and not the namespace value
+			p.WriteString(prefixToPrint)
+			p.WriteByte(':')
+			p.WriteString(start.Name.Local) // tag name
+		} else {
+			p.WriteString(start.Name.Local) // no prefix found
+			p.WriteString(` xmlns="`)	// printing the namespace taken as default without prefix
 			p.EscapeString(start.Name.Space)
 			p.WriteByte('"')
 		}
+	} else {
+		p.WriteString(start.Name.Local) // tag name
 	}
 
 	// Attributes
 	for _, attr := range start.Attr {
-		name := attr.Name
-		if name.Local == "" {
-			continue
+		if attr.Name.Local == "" || attr == tagSpaceAttr {
+			continue // attribute already printed
 		}
 		p.WriteByte(' ')
-		if name.Space == xmlnsPrefix { // printing prefix name.Local xmlns:{.Local}={.Value}
+		if attr.Name.Space == xmlnsPrefix { // printing prefix name.Local xmlns:{.Local}={.Value}
 			p.WriteString(xmlnsPrefix)
 			p.WriteByte(':')
-		} else if name.Space != "" { // not a name space {.Space}:{.Local}={.Value}
-			p.WriteString(p.createAttrPrefix(name.Space)) // name.Space is not a prefix
-			p.WriteByte(':')
+		} else if attr.Name.Space != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
+			p.WriteString(p.createAttrPrefix(attr.Name.Space)) // name.Space is not a prefix but nothing should be done
+			p.WriteByte(':')                                // about it if another one exists
 		}
-		// When space is empty, only writing .Local=.Value
+		// When space is empty, only writing .Local=.Value which will also be xmlns=".Value"
 		p.WriteString(attr.Name.Local)
 		p.WriteString(`="`)
 		p.EscapeString(attr.Value)
@@ -775,17 +817,24 @@ func (p *printer) writeEnd(name Name) error {
 	if len(p.tags) == 0 || p.tags[len(p.tags)-1].Local == "" {
 		return fmt.Errorf("xml: end tag </%s> without start tag", name.Local)
 	}
-	if top := p.tags[len(p.tags)-1]; top != name {
+	if top := p.tags[len(p.tags)-1]; top != name { // the end tag must check the prefix value when there is one
 		if top.Local != name.Local { // Tag names do not match
 			return fmt.Errorf("xml: end tag </%s> does not match start tag <%s>", name.Local, top.Local)
 		} // Namespaces do not match
-		return fmt.Errorf("xml: end tag </%s> in namespace %s does not match start tag <%s> in namespace %s", name.Local, name.Space, top.Local, top.Space)
+		if top.Space != name.Space { // tag prefixes do not match
+			return fmt.Errorf("xml: end space </%s> does not match start space <%s>", name.Space, top.Space)
+		}
 	}
-	p.tags = p.tags[:len(p.tags)-1]
 
 	p.writeIndent(-1)
 	p.WriteByte('<')
 	p.WriteByte('/')
+	endPrefix := p.tagPrefix()
+	if name.Space != "" && endPrefix != "" { // a prefix is available
+		p.WriteString(endPrefix) // print the prefix and not its value
+		p.WriteByte(':')
+	} // otherwise, xmlns=".Space" has no prefix and nothing should be printed
+	p.tags = p.tags[:len(p.tags)-1]
 	p.WriteString(name.Local)
 	p.WriteByte('>')
 	p.popPrefix()
