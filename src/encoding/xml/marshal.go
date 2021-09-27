@@ -400,11 +400,12 @@ func (p *printer) popPrefix() {
 		p.deleteAttrPrefix(prefix)
 	}
 }
+
 // No prefix is returned if the first prefix of the list for this tag is not assigned to a namespace
 func (p *printer) tagPrefix() string {
 	prefix := p.prefixes[len(p.prefixes)-1] // last prefix relates to current tag
 	i := len(p.prefixes) - 1
-	for i >= 0 && i < len(p.prefixes){
+	for i >= 0 && i < len(p.prefixes) {
 		if prefix == "" { // end of list of prefixes for this tag is reached
 			// check that previous prefix is the one of the tag
 			if i+1 < len(p.prefixes) { // list is not empty
@@ -763,7 +764,7 @@ func (p *printer) writeStart(start *StartElement) error {
 			}
 		}
 		if prefixToPrint == "" { // no prefix was found for the space of the tag name
-		// the tag name Space is then considered as the default xmlns=".Space"
+			// the tag name Space is then considered as the default xmlns=".Space"
 			for _, attr := range start.Attr {
 				// attributes values which are namespaces are searched to avoid reprinting the default
 				if start.Name.Space == attr.Value && attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix {
@@ -779,7 +780,7 @@ func (p *printer) writeStart(start *StartElement) error {
 			p.WriteString(start.Name.Local) // tag name
 		} else {
 			p.WriteString(start.Name.Local) // no prefix found
-			p.WriteString(` xmlns="`)	// printing the namespace taken as default without prefix
+			p.WriteString(` xmlns="`)       // printing the namespace taken as default without prefix
 			p.EscapeString(start.Name.Space)
 			p.WriteByte('"')
 		}
@@ -798,7 +799,7 @@ func (p *printer) writeStart(start *StartElement) error {
 			p.WriteByte(':')
 		} else if attr.Name.Space != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
 			p.WriteString(p.createAttrPrefix(attr.Name.Space)) // name.Space is not a prefix but nothing should be done
-			p.WriteByte(':')                                // about it if another one exists
+			p.WriteByte(':')                                   // about it if another one exists
 		}
 		// When space is empty, only writing .Local=.Value which will also be xmlns=".Value"
 		p.WriteString(attr.Name.Local)

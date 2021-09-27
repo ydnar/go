@@ -2082,7 +2082,7 @@ var encodeTokenTests = []struct {
 			{Name{"xmlns", "x"}, "space"},
 			{Name{"space", "foo"}, "value"},
 		}},
-	},// #16 <x:local xmlns:x="space" space:foo="value">
+	}, // #16 <x:local xmlns:x="space" space:foo="value">
 	want: `<x:local xmlns:x="space" xmlns:space="space" space:foo="value">`,
 }, {
 	desc: "start element with explicit namespace and colliding prefix",
@@ -2136,7 +2136,7 @@ var encodeTokenTests = []struct {
 			{Name{"xmlns", "b"}, "space"}, // xmlns:b="space"
 			{Name{"space", "x"}, "value"}, // space:x="value"
 		}},
-	},// #20
+	}, // #20
 	want: `<a:foo xmlns:a="space" xmlns:b="space" xmlns:space="space" space:x="value">`,
 }, {
 	desc: "nested element redefines name space",
@@ -2172,7 +2172,7 @@ var encodeTokenTests = []struct {
 			{Name{"", "xmlns"}, "space"},  // xlmns="space"
 			{Name{"space", "a"}, "value"}, // space:a="value"
 		}},
-	},// #23 Keeps its oddity
+	}, // #23 Keeps its oddity
 	want: `<foo xmlns:x="space"><foo xmlns="space" xmlns:space="space" space:a="value">`,
 }, {
 	desc: "nested element uses empty attribute name space when default ns defined",
@@ -2183,7 +2183,7 @@ var encodeTokenTests = []struct {
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"", "attr"}, "value"},
 		}},
-	},// #24 Purpose is to produce valid xml
+	}, // #24 Purpose is to produce valid xml
 	want: `<foo xmlns="space"><foo xmlns="space" attr="value">`,
 }, {
 	desc: "redefine xmlns",
@@ -2240,8 +2240,8 @@ var encodeTokenTests = []struct {
 			{Name{"", "xmlns"}, "space"},
 		}},
 		StartElement{Name{"", "foo"}, []Attr{
-			{Name{"", "xmlns"}, ""}, // xmlns=""
-			{Name{"", "x"}, "value"}, // x="value"
+			{Name{"", "xmlns"}, ""},       // xmlns=""
+			{Name{"", "x"}, "value"},      // x="value"
 			{Name{"space", "x"}, "value"}, // space:x="value"
 		}},
 	}, // #31 xmlns:space="space" oddity still appears
@@ -2281,8 +2281,8 @@ var encodeTokenTests = []struct {
 	desc: "default name space not used by attributes, not explicitly defined",
 	toks: []Token{
 		StartElement{Name{"space", "foo"}, []Attr{
-			{Name{"", "xmlns"}, "space"},		// xmlns="space"
-			{Name{"space", "baz"}, "foo"},	// space:baz="foo"
+			{Name{"", "xmlns"}, "space"},  // xmlns="space"
+			{Name{"space", "baz"}, "foo"}, // space:baz="foo"
 		}},
 		StartElement{Name{"space", "baz"}, nil},
 		EndElement{Name{"space", "baz"}},
