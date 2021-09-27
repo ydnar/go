@@ -1211,17 +1211,18 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	if !ok {
 		return
 	}
-	if strings.Count(s, ":") > 1 {
+	n := strings.Count(s, ":")
+	if n == 0 { // No colons, no namespace. OK.
 		name.Local = s
-	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 {
+	} else if n > 1 { // More than one colon, not OK.
 		name.Local = s
+		return name, false
+	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 { // Leading or trailing colon, not OK.
+		name.Local = s
+		return name, false
 	} else {
 		name.Space = s[0:i]
-		if strings.Contains(s[i+1:], ":") {
-			return name, false
-		} else {
-			name.Local = s[i+1:]
-		}
+		name.Local = s[i+1:]
 	}
 	return name, true
 }
