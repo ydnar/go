@@ -835,12 +835,15 @@ func (d *Decoder) rawToken() (Token, error) {
 		d.ungetc(b)
 
 		a := Attr{}
-		// Tag has a list of attributes bound to a namespace or not.
-		a.Name, ok = d.nsname()
-		// if !ok the attribute name has no namespace
+		if a.Name, ok = d.nsname(); !ok {
+			if d.err == nil {
+				d.err = d.syntaxError("expected attribute name in element")
+			}
+			return nil, d.err
+		}
 		d.space()
 		if b, ok = d.mustgetc(); !ok {
-			d.err = d.syntaxError("expected attribute name in element")
+			// d.err = d.syntaxError("expected attribute name in element")
 			return nil, d.err
 		}
 		if b != '=' { // nsname.Local is the attribute name if xmlns is present otherwise err was returned

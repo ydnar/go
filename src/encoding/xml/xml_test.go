@@ -730,7 +730,7 @@ var characterTests = []struct {
 	{"<?xml version=\"1.0\"?>\x0b<doc/>", "illegal character code U+000B"},
 	{"\xef\xbf\xbe<doc/>", "illegal character code U+FFFE"},
 	{"<?xml version=\"1.0\"?><doc>\r\n<hiya/>\x07<toots/></doc>", "illegal character code U+0007"},
-	{"<?xml version=\"1.0\"?><doc \x12='value'>what's up</doc>", "expected = after attribute name"},
+	{"<?xml version=\"1.0\"?><doc \x12='value'>what's up</doc>", "expected attribute name in element"},
 	{"<doc>&abc\x01;</doc>", "invalid character entity &abc (no semicolon)"},
 	{"<doc>&\x01;</doc>", "invalid character entity & (no semicolon)"},
 	{"<doc>&\xef\xbf\xbe;</doc>", "invalid character entity &\uFFFE;"},
