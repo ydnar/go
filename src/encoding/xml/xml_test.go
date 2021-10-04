@@ -6,6 +6,7 @@ package xml
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -1563,6 +1564,102 @@ func TestMarshalXMLName(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMarshalXMLPrefixedName(t *testing.T) {
+
+	type DomainCheck struct {
+		DomainNames []string `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:name,omitempty"`
+	}
+
+	type Check struct {
+		DomainCheck *DomainCheck `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:check,omitempty"`
+	}
+
+	type Command struct {
+		Check *Check `xml:"check,omitempty"`
+	}
+
+	type EPP struct {
+		XMLName struct{} `xml:"urn:ietf:params:xml:ns:epp-1.0 epp"`
+		Command *Command `xml:"command,omitempty"`
+	}
+
+	var tests = []struct {
+		xml string
+		v   interface{}
+		err string
+	}{
+		{
+			xml: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"></epp>`,
+			v:   &EPP{},
+		},
+		{
+			xml: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command></command></epp>`,
+			v:   &EPP{Command: &Command{}},
+		},
+		{
+			xml: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check></check></command></epp>`,
+			v:   &EPP{Command: &Command{Check: &Check{}}},
+		},
+		{
+			xml: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"></domain:check></check></command></epp>`,
+			v:   &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{}}}},
+		},
+		{
+			xml: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name></domain:check></check></command></epp>`,
+			v:   &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org"}}}}},
+		},
+		{
+			xml: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name><domain:name>go.dev</domain:name></domain:check></check></command></epp>`,
+			v:   &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org", "go.dev"}}}}},
+		},
+	}
+
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			data, err := Marshal(test.v)
+			if err != nil {
+				if test.err == "" {
+					t.Errorf("Marshal(%#v): %s", test.v, err)
+					return
+				}
+				if !strings.Contains(err.Error(), test.err) {
+					t.Errorf("Marshal(%#v): %s, want %q", test.v, err, test.err)
+				}
+				return
+			}
+			if test.err != "" {
+				t.Errorf("Marshal succeeded, want error %q", test.err)
+				return
+			}
+			if got, want := string(data), test.xml; got != want {
+				if strings.Contains(want, "\n") {
+					t.Errorf("Marshal(%#v):\nHAVE:\n%s\nWANT:\n%s", test.v, got, want)
+				} else {
+					t.Errorf("Marshal(%#v):\nhave %#q\nwant %#q", test.v, got, want)
+				}
+			}
+
+			vt := reflect.TypeOf(test.v)
+			dest := reflect.New(vt.Elem()).Interface()
+			err = Unmarshal([]byte(test.xml), dest)
+			if err != nil {
+				t.Error(err)
+			}
+			if got, want := dest, test.v; !reflect.DeepEqual(got, want) {
+				t.Errorf("Unmarshal(%s):\nhave %s\nwant %s", test.xml, asJSON(got), asJSON(want))
+			}
+		})
+	}
+}
+
+func asJSON(v interface{}) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err.Error()
+	}
+	return string(b)
 }
 
 func TestIssue7113(t *testing.T) {

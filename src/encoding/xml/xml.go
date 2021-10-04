@@ -350,8 +350,9 @@ func (d *Decoder) Token() (Token, error) {
 
 const (
 	xmlURL      = "http://www.w3.org/XML/1998/namespace"
-	xmlnsPrefix = "xmlns"
 	xmlPrefix   = "xml"
+	xmlnsURL    = "http://www.w3.org/2000/xmlns/"
+	xmlnsPrefix = "xmlns"
 )
 
 // Apply name space translation to name n.

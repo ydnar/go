@@ -318,18 +318,28 @@ type printer struct {
 }
 
 // createAttrPrefix finds the name space prefix attribute to use for the given name space,
-// defining a new prefix if necessary. It returns the prefix.
-func (p *printer) createAttrPrefix(url string) string {
-	if prefix := p.attrPrefix[url]; prefix != "" {
-		return prefix
-	}
-
+// but does not create it if it does not exist.
+func (p *printer) getPrefix(url string) string {
 	// The "http://www.w3.org/XML/1998/namespace" name space is predefined as "xml"
 	// and must be referred to that way.
 	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
 	// but users should not be trying to use that one directly - that's our job.)
-	if url == xmlURL {
+	switch url {
+	case xmlURL:
 		return xmlPrefix
+	case xmlnsURL:
+		return xmlnsPrefix
+	}
+
+	return p.attrPrefix[url]
+}
+
+// createPrefix finds the name space prefix attribute to use for the given name space,
+// defining a new prefix if necessary. It returns the prefix.
+// If preferred is set, then it will attempt to use that value as the prefix.
+func (p *printer) createPrefix(url, preferred string) string {
+	if prefix := p.getPrefix(url); prefix != "" {
+		return prefix
 	}
 
 	// Need to define a new name space.
@@ -340,7 +350,10 @@ func (p *printer) createAttrPrefix(url string) string {
 
 	// Pick a name. We try to use the final element of the path
 	// but fall back to _.
-	prefix := strings.TrimRight(url, "/")
+	prefix := preferred
+	if prefix == "" {
+		prefix = strings.TrimRight(url, "/")
+	}
 	if i := strings.LastIndex(prefix, "/"); i >= 0 {
 		prefix = prefix[i+1:]
 	}
@@ -371,7 +384,7 @@ func (p *printer) createAttrPrefix(url string) string {
 	p.WriteString(prefix)
 	p.WriteString(`="`)
 	EscapeText(p, []byte(url))
-	p.WriteString(`" `)
+	p.WriteByte('"')
 
 	p.prefixes = append(p.prefixes, prefix)
 
@@ -748,39 +761,48 @@ func (p *printer) writeStart(start *StartElement) error {
 	/* The attribute was not added if no XMLName field existed. */
 	var tagSpaceAttr Attr       // the attribute will not be printed to avoid repetition
 	if start.Name.Space != "" { // tag starts with <.Space:.Local
+		var prefixDefined bool
 		// Locate an eventual prefix. If none, the XML is <tag name and no short notation is used.
-		prefixToPrint := ""
-		for _, attr := range start.Attr {
-			// tag .Space only contains a namespace URL and the prefix is unavailable
-			// (xmlns:(unavailable)=.Space)
-			// Attributes values which are namespaces are searched to avoid reprinting the domain
-			// The first attribute with a value == to start tag token will be the prefix used
-			// Print the space definition if the prefix is used
-			if start.Name.Space == attr.Value && attr.Name.Space == xmlnsPrefix && attr.Name.Local != "" {
-				// this is not enough if you return End tag with url in space and not the prefix
-				prefixToPrint = attr.Name.Local                // if you skip printing, the value of the prefix does not display
-				p.prefixes = append(p.prefixes, prefixToPrint) // xmlns(.Space):(.Local)=(.Value)
-				break                                          // the first prefix found is used
+		prefix, local := splitPrefixed(start.Name.Local)
+		if prefix == "" {
+			for _, attr := range start.Attr {
+				// tag .Space only contains a namespace URL and the prefix is unavailable
+				// (xmlns:(unavailable)=.Space)
+				// Attributes values which are namespaces are searched to avoid reprinting the domain
+				// The first attribute with a value == to start tag token will be the prefix used
+				// Print the space definition if the prefix is used
+				if attr.Name.Space == xmlnsPrefix && attr.Name.Local != "" && attr.Value == start.Name.Space {
+					// this is not enough if you return End tag with url in space and not the prefix
+					prefixDefined = true
+					prefix = attr.Name.Local // if you skip printing, the value of the prefix does not display
+					p.prefixes = append(p.prefixes, prefix)
+					break // the first prefix found is used
+				}
 			}
 		}
-		if prefixToPrint == "" { // no prefix was found for the space of the tag name
+		if prefix == "" {
+			// no prefix was found for the space of the tag name
 			// the tag name Space is then considered as the default xmlns=".Space"
 			for _, attr := range start.Attr {
 				// attributes values which are namespaces are searched to avoid reprinting the default
-				if start.Name.Space == attr.Value && attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix {
+				if attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix && attr.Value == start.Name.Space {
 					tagSpaceAttr = attr
 				}
 				break // the first attribute which is a default declaration that matches is kept
 			}
 		}
-		if prefixToPrint != "" {
+		if prefix != "" {
 			// print the prefix and not the namespace value
-			p.WriteString(prefixToPrint)
+			p.WriteString(prefix)
 			p.WriteByte(':')
-			p.WriteString(start.Name.Local) // tag name
+			p.WriteString(local) // tag name
+			if !prefixDefined && p.getPrefix(start.Name.Space) == "" {
+				p.WriteByte(' ')
+				p.createPrefix(start.Name.Space, prefix)
+			}
 		} else {
-			p.WriteString(start.Name.Local) // no prefix found
-			p.WriteString(` xmlns="`)       // printing the namespace taken as default without prefix
+			p.WriteString(local)      // no prefix found
+			p.WriteString(` xmlns="`) // printing the namespace taken as default without prefix
 			p.EscapeString(start.Name.Space)
 			p.WriteByte('"')
 		}
@@ -798,8 +820,13 @@ func (p *printer) writeStart(start *StartElement) error {
 			p.WriteString(xmlnsPrefix)
 			p.WriteByte(':')
 		} else if attr.Name.Space != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
-			p.WriteString(p.createAttrPrefix(attr.Name.Space)) // name.Space is not a prefix but nothing should be done
-			p.WriteByte(':')                                   // about it if another one exists
+			prefix := p.getPrefix(attr.Name.Space)
+			if prefix == "" {
+				prefix = p.createPrefix(attr.Name.Space, "")
+				p.WriteByte(' ')
+			}
+			p.WriteString(prefix)
+			p.WriteByte(':')
 		}
 		// When space is empty, only writing .Local=.Value which will also be xmlns=".Value"
 		p.WriteString(attr.Name.Local)
