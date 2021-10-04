@@ -524,6 +524,38 @@ type IfaceAny struct {
 	T2  T2
 }
 
+type EPP struct {
+	XMLName struct{} `xml:"urn:ietf:params:xml:ns:epp-1.0 epp"`
+	Command *Command `xml:"command,omitempty"`
+}
+
+type Command struct {
+	Check *Check `xml:"urn:ietf:params:xml:ns:epp-1.0 check,omitempty"`
+}
+
+type Check struct {
+	DomainCheck *DomainCheck `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:check,omitempty"`
+}
+
+type DomainCheck struct {
+	DomainNames []string `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:name,omitempty"`
+}
+
+type SecureEnvelope struct {
+	XMLName struct{}       `xml:"urn:test:secure-1.0 sec:envelope"`
+	Message *SecureMessage `xml:"urn:test:message-1.0 msg,omitempty"`
+}
+
+type SecureMessage struct {
+	Body   string `xml:"urn:test:message-1.0 body,omitempty"`
+	Signer string `xml:"urn:test:secure-1.0 sec:signer,attr,omitempty"`
+}
+
+type NamespacedNested struct {
+	XMLName struct{} `xml:"urn:test:nested-1.0 nested"`
+	Value   string   `xml:"urn:test:nested-1.0 nested:wrapper>nested:value"`
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
@@ -812,7 +844,7 @@ var marshalTests = []struct {
 			D1: "d1",
 		},
 		ExpectXML: `<top xmlns="space">` +
-			`<x><a>a</a><b>b</b><c xmlns="space">c</c>` +
+			`<x><a>a</a><b>b</b><c>c</c>` +
 			`<c xmlns="space1">c1</c>` +
 			`<d xmlns="space1">d1</d>` +
 			`</x>` +
@@ -1660,6 +1692,59 @@ var marshalTests = []struct {
 		Value:         &DirectAny{Any: string("")},
 		UnmarshalOnly: true,
 	},
+
+	// Test namespace prefixes
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"></epp>`,
+		Value:     &EPP{},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command></command></epp>`,
+		Value:     &EPP{Command: &Command{}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{}}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org"}}}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name><domain:name>go.dev</domain:name></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org", "go.dev"}}}}},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"></sec:envelope>`,
+		Value:     &SecureEnvelope{},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0"></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{}},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0"><body>Hello, world.</body></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{Body: "Hello, world."}},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0" sec:signer="gopher@golang.org"><body>Thanks</body></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{Body: "Thanks", Signer: "gopher@golang.org"}},
+	},
+	{
+		ExpectXML: `<nested xmlns="urn:test:nested-1.0"><wrapper><nested:value xmlns:nested="urn:test:nested-1.0">You’re welcome!</nested:value></wrapper></nested>`,
+		Value:     &NamespacedNested{Value: "You’re welcome!"},
+	},
+	{
+		ExpectXML: `<space:name><space:value>value</space:value></space:name>`,
+		Value: &struct {
+			XMLName struct{} `xml:"space:name"`
+			Value   string   `xml:"space:value"`
+		}{Value: "value"},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -2178,7 +2263,7 @@ var encodeTokenTests = []struct {
 			{Name{"", "attr"}, "value"},
 		}},
 	},
-	want: `<foo xmlns="space"><foo xmlns="space" attr="value">`,
+	want: `<foo xmlns="space"><foo attr="value">`,
 }, {
 	desc: "redefine xmlns",
 	toks: []Token{
@@ -2270,7 +2355,7 @@ var encodeTokenTests = []struct {
 		EndElement{Name{"space", "baz"}},
 		EndElement{Name{"space", "foo"}},
 	},
-	want: `<bar:foo xmlns="space" xmlns:bar="space" xmlns:space="space" space:baz="foo"><baz xmlns="space"></baz></bar:foo>`,
+	want: `<bar:foo xmlns="space" xmlns:bar="space" xmlns:space="space" space:baz="foo"><space:baz></space:baz></bar:foo>`,
 }, {
 	desc: "default name space not used by attributes, not explicitly defined",
 	toks: []Token{
@@ -2282,7 +2367,7 @@ var encodeTokenTests = []struct {
 		EndElement{Name{"space", "baz"}},
 		EndElement{Name{"space", "foo"}},
 	},
-	want: `<foo xmlns="space" xmlns:space="space" space:baz="foo"><baz xmlns="space"></baz></foo>`,
+	want: `<foo xmlns="space" xmlns:space="space" space:baz="foo"><space:baz></space:baz></foo>`,
 }, {
 	desc: "impossible xmlns declaration",
 	toks: []Token{
