@@ -331,8 +331,8 @@ type printer struct {
 	indentedIn bool
 	putNewline bool
 	minIndent  bool              // new line even with empty prefix and indent
-	attrNS     map[string]string // map prefix -> name space
-	attrPrefix map[string]string // map name space -> prefix
+	prefixToNS map[string]string // map prefix -> name space
+	nsToPrefix map[string]string // map name space -> prefix
 	prefixes   []string
 	tags       []tagName
 }
@@ -351,7 +351,7 @@ func (p *printer) getPrefix(url string) string {
 		return xmlnsPrefix
 	}
 
-	return p.attrPrefix[url]
+	return p.nsToPrefix[url]
 }
 
 // createPrefix finds the name space prefix attribute to use for the given name space,
@@ -363,9 +363,9 @@ func (p *printer) createPrefix(url, preferred string) string {
 	}
 
 	// Need to define a new name space.
-	if p.attrPrefix == nil {
-		p.attrPrefix = make(map[string]string)
-		p.attrNS = make(map[string]string)
+	if p.nsToPrefix == nil {
+		p.nsToPrefix = make(map[string]string)
+		p.prefixToNS = make(map[string]string)
 	}
 
 	// Pick a name. We try to use the final element of the path
@@ -387,18 +387,18 @@ func (p *printer) createPrefix(url, preferred string) string {
 	if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
 		prefix = "_" + prefix
 	}
-	if p.attrNS[prefix] != "" {
+	if p.prefixToNS[prefix] != "" {
 		// Name is taken. Find a better one.
 		for p.seq++; ; p.seq++ {
-			if id := prefix + "_" + strconv.Itoa(p.seq); p.attrNS[id] == "" {
+			if id := prefix + "_" + strconv.Itoa(p.seq); p.prefixToNS[id] == "" {
 				prefix = id
 				break
 			}
 		}
 	}
 
-	p.attrPrefix[url] = prefix
-	p.attrNS[prefix] = url
+	p.nsToPrefix[url] = prefix
+	p.prefixToNS[prefix] = url
 	/* prints a prefix definition for the URL which had no prefix */
 	p.WriteString(`xmlns:`)
 	p.WriteString(prefix)
@@ -413,8 +413,8 @@ func (p *printer) createPrefix(url, preferred string) string {
 
 // deleteAttrPrefix removes an attribute name space prefix.
 func (p *printer) deleteAttrPrefix(prefix string) {
-	delete(p.attrPrefix, p.attrNS[prefix])
-	delete(p.attrNS, prefix)
+	delete(p.nsToPrefix, p.prefixToNS[prefix])
+	delete(p.prefixToNS, prefix)
 }
 
 // p.prefixes contains prefixes separated by the empty string between tags
