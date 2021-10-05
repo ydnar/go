@@ -524,6 +524,23 @@ type IfaceAny struct {
 	T2  T2
 }
 
+type EPP struct {
+	XMLName struct{} `xml:"urn:ietf:params:xml:ns:epp-1.0 epp"`
+	Command *Command `xml:"command,omitempty"`
+}
+
+type Command struct {
+	Check *Check `xml:"urn:ietf:params:xml:ns:epp-1.0 check,omitempty"`
+}
+
+type Check struct {
+	DomainCheck *DomainCheck `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:check,omitempty"`
+}
+
+type DomainCheck struct {
+	DomainNames []string `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:name,omitempty"`
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
@@ -1655,6 +1672,32 @@ var marshalTests = []struct {
 		ExpectXML:     `<DirectFoo><T1></T1><Foo></Foo><T2></T2></DirectFoo>`,
 		Value:         &DirectAny{Any: string("")},
 		UnmarshalOnly: true,
+	},
+
+	// Test namespace prefixes
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"></epp>`,
+		Value:     &EPP{},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command></command></epp>`,
+		Value:     &EPP{Command: &Command{}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{}}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org"}}}}},
+	},
+	{
+		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name><domain:name>go.dev</domain:name></domain:check></check></command></epp>`,
+		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org", "go.dev"}}}}},
 	},
 }
 
