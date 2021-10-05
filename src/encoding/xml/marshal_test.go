@@ -812,7 +812,7 @@ var marshalTests = []struct {
 			D1: "d1",
 		},
 		ExpectXML: `<top xmlns="space">` +
-			`<x><a>a</a><b>b</b><c xmlns="space">c</c>` +
+			`<x><a>a</a><b>b</b><c>c</c>` +
 			`<c xmlns="space1">c1</c>` +
 			`<d xmlns="space1">d1</d>` +
 			`</x>` +
@@ -2177,14 +2177,14 @@ var encodeTokenTests = []struct {
 }, {
 	desc: "nested element uses empty attribute name space when default ns defined",
 	toks: []Token{
-		StartElement{Name{"space", "foo"}, []Attr{ // The prefix is redeclared but not bound
+		StartElement{Name{"space", "foo"}, []Attr{ // The namespace is redeclared but not bound
 			{Name{"", "xmlns"}, "space"},
 		}},
 		StartElement{Name{"space", "foo"}, []Attr{
 			{Name{"", "attr"}, "value"},
 		}},
 	}, // #24 Purpose is to produce valid xml
-	want: `<foo xmlns="space"><foo xmlns="space" attr="value">`,
+	want: `<foo xmlns="space"><foo attr="value">`,
 }, {
 	desc: "redefine xmlns",
 	toks: []Token{

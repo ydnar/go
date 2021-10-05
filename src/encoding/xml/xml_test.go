@@ -1577,7 +1577,7 @@ func TestMarshalXMLPrefixedName(t *testing.T) {
 	}
 
 	type Command struct {
-		Check *Check `xml:"check,omitempty"`
+		Check *Check `xml:"urn:ietf:params:xml:ns:epp-1.0 check,omitempty"`
 	}
 
 	type EPP struct {

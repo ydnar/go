@@ -789,6 +789,16 @@ func (p *printer) writeStart(start *StartElement) error {
 				}
 				break // the first attribute which is a default declaration that matches is kept
 			}
+
+			// Walk up the tree to see if a default namespace is already defined (without a prefix)
+			for i := len(p.tags) - 1; i >= 0; i-- {
+				if p.tags[i].space == tag.space {
+					if p.tags[i].prefix == "" {
+						spaceDefined = true
+					}
+					break
+				}
+			}
 		}
 	}
 
