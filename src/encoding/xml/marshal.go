@@ -339,26 +339,25 @@ type printer struct {
 
 // createAttrPrefix finds the name space prefix attribute to use for the given name space,
 // but does not create it if it does not exist.
-func (p *printer) getPrefix(url string) string {
+func (p *printer) getPrefix(uri string) string {
+	switch uri {
 	// The "http://www.w3.org/XML/1998/namespace" name space is predefined as "xml"
 	// and must be referred to that way.
-	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
-	// but users should not be trying to use that one directly - that's our job.)
-	switch url {
 	case xmlURL:
 		return xmlPrefix
+		// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
+		// but users should not be trying to use that one directly - that's our job.)
 	case xmlnsURL:
 		return xmlnsPrefix
 	}
-
-	return p.nsToPrefix[url]
+	return p.nsToPrefix[uri]
 }
 
 // createPrefix finds the name space prefix attribute to use for the given name space,
 // defining a new prefix if necessary. It returns the prefix.
 // If preferred is set, then it will attempt to use that value as the prefix.
-func (p *printer) createPrefix(url, preferred string) string {
-	if prefix := p.getPrefix(url); prefix != "" {
+func (p *printer) createPrefix(uri, preferred string) string {
+	if prefix := p.getPrefix(uri); prefix != "" {
 		return prefix
 	}
 
@@ -372,7 +371,7 @@ func (p *printer) createPrefix(url, preferred string) string {
 	// but fall back to _.
 	prefix := preferred
 	if prefix == "" {
-		prefix = strings.TrimRight(url, "/")
+		prefix = strings.TrimRight(uri, "/")
 	}
 	if i := strings.LastIndex(prefix, "/"); i >= 0 {
 		prefix = prefix[i+1:]
@@ -397,13 +396,13 @@ func (p *printer) createPrefix(url, preferred string) string {
 		}
 	}
 
-	p.nsToPrefix[url] = prefix
-	p.prefixToNS[prefix] = url
+	p.nsToPrefix[uri] = prefix
+	p.prefixToNS[prefix] = uri
 	/* prints a prefix definition for the URL which had no prefix */
 	p.WriteString(`xmlns:`)
 	p.WriteString(prefix)
 	p.WriteString(`="`)
-	EscapeText(p, []byte(url))
+	EscapeText(p, []byte(uri))
 	p.WriteByte('"')
 
 	p.prefixes = append(p.prefixes, prefix)
