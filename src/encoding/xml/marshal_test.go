@@ -2276,7 +2276,7 @@ var encodeTokenTests = []struct {
 		EndElement{Name{"space", "baz"}},        // space:baz>
 		EndElement{Name{"space", "foo"}},        // space:foo>
 	}, // #34 space has a prefix bar and is defined and should not appear again in baz tag
-	want: `<bar:foo xmlns="space" xmlns:bar="space" xmlns:space="space" space:baz="foo"><baz xmlns="space"></baz></bar:foo>`,
+	want: `<bar:foo xmlns="space" xmlns:bar="space" xmlns:space="space" space:baz="foo"><space:baz></space:baz></bar:foo>`,
 }, {
 	desc: "default name space not used by attributes, not explicitly defined",
 	toks: []Token{
@@ -2288,7 +2288,7 @@ var encodeTokenTests = []struct {
 		EndElement{Name{"space", "baz"}},
 		EndElement{Name{"space", "foo"}},
 	}, // #35 space in the start element is a URL without prefix. It means that Space is default and no prefix is created
-	want: `<foo xmlns="space" xmlns:space="space" space:baz="foo"><baz xmlns="space"></baz></foo>`,
+	want: `<foo xmlns="space" xmlns:space="space" space:baz="foo"><space:baz></space:baz></foo>`,
 }, {
 	desc: "impossible xmlns declaration",
 	toks: []Token{

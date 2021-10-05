@@ -681,14 +681,6 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 	return nil
 }
 
-func splitPrefixed(name string) (prefix, local string) {
-	i := strings.Index(name, ":")
-	if i < 1 || i > len(name)-2 {
-		return "", name
-	}
-	return name[:i], name[i+1:]
-}
-
 // unmarshalPath walks down an XML structure looking for wanted
 // paths, and calls unmarshal on them.
 // The consumed result tells whether XML elements have been consumed
