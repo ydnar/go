@@ -337,7 +337,7 @@ type printer struct {
 	tags       []tagName
 }
 
-// createAttrPrefix finds the name space prefix attribute to use for the given name space,
+// getPrefix finds the name space prefix attribute to use for the given namespace,
 // but does not create it if it does not exist.
 func (p *printer) getPrefix(uri string) string {
 	switch uri {
@@ -353,9 +353,9 @@ func (p *printer) getPrefix(uri string) string {
 	return p.nsToPrefix[uri]
 }
 
-// createPrefix finds the name space prefix attribute to use for the given name space,
+// createPrefix finds the name space prefix attribute to use for the given namespace,
 // defining a new prefix if necessary. It returns the prefix.
-// If preferred is set, then it will attempt to use that value as the prefix.
+// It will attempt to use preferred as the prefix if set.
 func (p *printer) createPrefix(uri, preferred string) string {
 	if prefix := p.getPrefix(uri); prefix != "" {
 		return prefix
