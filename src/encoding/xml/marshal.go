@@ -423,7 +423,7 @@ func (p *printer) markPrefix() {
 	p.prefixes = append(p.prefixes, "")
 }
 
-func (p *printer) popPrefix() {
+func (p *printer) popPrefixes() {
 	for len(p.prefixes) > 0 {
 		prefix := p.prefixes[len(p.prefixes)-1]
 		p.prefixes = p.prefixes[:len(p.prefixes)-1]
@@ -875,7 +875,7 @@ func (p *printer) writeEnd(name Name) error {
 	p.WriteString(tag.local)
 	p.WriteByte('>')
 	p.tags = p.tags[:len(p.tags)-1]
-	p.popPrefix()
+	p.popPrefixes()
 	return nil
 }
 
