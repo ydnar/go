@@ -20,6 +20,7 @@ type typeInfo struct {
 // fieldInfo holds details for the xml representation of a single field.
 type fieldInfo struct {
 	idx     []int
+	prefix  string
 	name    string
 	xmlns   string
 	flags   fieldFlags
@@ -177,7 +178,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		// The XMLName field records the XML element name. Don't
 		// process it as usual because its name should default to
 		// empty rather than to the field name.
-		finfo.name = tag
+		finfo.prefix, finfo.name = splitPrefixed(tag)
 		return finfo, nil
 	}
 
@@ -187,7 +188,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		// or field name otherwise.
 		// This is how an anonymous struct gets a value
 		if xmlname := lookupXMLName(f.Type); xmlname != nil {
-			finfo.xmlns, finfo.name = xmlname.xmlns, xmlname.name
+			finfo.xmlns, finfo.prefix, finfo.name = xmlname.xmlns, xmlname.prefix, xmlname.name
 		} else {
 			finfo.name = f.Name
 		}
@@ -202,7 +203,11 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 	if parents[len(parents)-1] == "" {
 		return nil, fmt.Errorf("xml: trailing '>' in field %s of type %s", f.Name, typ)
 	}
-	finfo.name = parents[len(parents)-1]
+	finfo.prefix, finfo.name = splitPrefixed(parents[len(parents)-1])
+	// TODO(ydnar): should we allow prefixed parents, e.g.: space:a>space>b?
+	for i := range parents {
+		_, parents[i] = splitPrefixed(parents[i])
+	}
 	if len(parents) > 1 {
 		if (finfo.flags & fElement) == 0 {
 			return nil, fmt.Errorf("xml: %s chain not valid with %s flag", tag, strings.Join(tokens[1:], ","))

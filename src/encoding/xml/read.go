@@ -423,12 +423,11 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		// Validate and assign element name.
 		if tinfo.xmlname != nil {
 			finfo := tinfo.xmlname
-			_, local := splitPrefixed(finfo.name)
-			if local != "" && local != start.Name.Local {
-				return UnmarshalError("expected element type <" + local + "> but have <" + start.Name.Local + ">")
+			if finfo.name != "" && finfo.name != start.Name.Local {
+				return UnmarshalError("expected element type <" + finfo.name + "> but have <" + start.Name.Local + ">")
 			}
 			if finfo.xmlns != "" && finfo.xmlns != start.Name.Space {
-				e := "expected element <" + local + "> in name space " + finfo.xmlns + " but have "
+				e := "expected element <" + finfo.name + "> in name space " + finfo.xmlns + " but have "
 				if start.Name.Space == "" {
 					e += "no name space"
 				} else {
@@ -462,11 +461,10 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 			any := -1
 			for i := range tinfo.fields {
 				finfo := &tinfo.fields[i]
-				_, local := splitPrefixed(finfo.name)
 				switch finfo.flags & fMode {
 				case fAttr:
 					strv := finfo.value(sv, initNilPointers)
-					if a.Name.Local == local && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
+					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
 						if err := d.unmarshalAttr(strv, a); err != nil {
 							return err
 						}
@@ -697,14 +695,11 @@ Loop:
 			continue
 		}
 		for j := range parents {
-			_, plocal := splitPrefixed(parents[j])
-			_, flocal := splitPrefixed(finfo.parents[j])
-			if plocal != flocal {
+			if parents[j] != finfo.parents[j] {
 				continue Loop
 			}
 		}
-		_, local := splitPrefixed(finfo.name)
-		if len(finfo.parents) == len(parents) && local == start.Name.Local {
+		if len(finfo.parents) == len(parents) && finfo.name == start.Name.Local {
 			// It's a perfect match, unmarshal the field.
 			return true, d.unmarshal(finfo.value(sv, initNilPointers), start)
 		}

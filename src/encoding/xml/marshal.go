@@ -321,6 +321,13 @@ func splitPrefixed(name string) (prefix, local string) {
 	return name[:i], name[i+1:]
 }
 
+func joinPrefixed(prefix, local string) string {
+	if prefix == "" {
+		return local
+	}
+	return prefix + ":" + local
+}
+
 type printer struct {
 	*bufio.Writer
 	encoder    *Encoder
@@ -517,7 +524,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	} else if tinfo.xmlname != nil {
 		xmlname := tinfo.xmlname
 		if xmlname.name != "" {
-			start.Name.Space, start.Name.Local = xmlname.xmlns, xmlname.name
+			start.Name.Space, start.Name.Local = xmlname.xmlns, joinPrefixed(xmlname.prefix, xmlname.name)
 		} else {
 			fv := xmlname.value(val, dontInitNilPointers)
 			if v, ok := fv.Interface().(Name); ok && v.Local != "" {
@@ -528,7 +535,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		// No enforced namespace, i.e. the outer tag namespace remains valid
 	}
 	if start.Name.Local == "" && finfo != nil { // XMLName overrides tag name - anonymous struct
-		start.Name.Space, start.Name.Local = finfo.xmlns, finfo.name
+		start.Name.Space, start.Name.Local = finfo.xmlns, joinPrefixed(finfo.prefix, finfo.name)
 	}
 	if start.Name.Local == "" { // No or empty XMLName and still no tag name
 		name := typ.Name()
@@ -558,7 +565,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 			continue
 		}
 
-		name := Name{Space: finfo.xmlns, Local: finfo.name}
+		name := Name{Space: finfo.xmlns, Local: joinPrefixed(finfo.prefix, finfo.name)}
 		if err := p.marshalAttr(&start, name, fv); err != nil {
 			return err
 		}
@@ -692,7 +699,7 @@ func defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElemen
 		start.Name = startTemplate.Name
 		start.Attr = append(start.Attr, startTemplate.Attr...)
 	} else if finfo != nil && finfo.name != "" {
-		start.Name.Local = finfo.name
+		start.Name.Local = joinPrefixed(finfo.prefix, finfo.name)
 		start.Name.Space = finfo.xmlns
 	} else if typ.Name() != "" {
 		start.Name.Local = typ.Name()
