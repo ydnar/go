@@ -598,8 +598,7 @@ func TestIssue569(t *testing.T) {
 }
 
 func TestUnquotedAttrs(t *testing.T) {
-	attrValue := "azAZ09:-_\t"
-	data := "<tag attr=" + attrValue + ">"
+	data := "<tag attr=azAZ09:-_\t>"
 	d := NewDecoder(strings.NewReader(data))
 	d.Strict = false
 	token, err := d.Token()
@@ -610,8 +609,8 @@ func TestUnquotedAttrs(t *testing.T) {
 		t.Errorf("Unexpected tag name: %v", token.(StartElement).Name.Local)
 	}
 	attr := token.(StartElement).Attr[0]
-	if attr.Value != attrValue {
-		t.Errorf("Unexpected attribute value: got %s want %s", attr.Value, attrValue)
+	if attr.Value != "azAZ09:-_" {
+		t.Errorf("Unexpected attribute value: %v", attr.Value)
 	}
 	if attr.Name.Local != "attr" {
 		t.Errorf("Unexpected attribute name: %v", attr.Name.Local)

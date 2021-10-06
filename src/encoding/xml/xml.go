@@ -871,18 +871,22 @@ func (d *Decoder) rawToken() (Token, error) {
 }
 
 func (d *Decoder) attrval() []byte {
-	d.buf.Reset()
 	b, ok := d.mustgetc()
 	if !ok {
 		return nil
 	}
 	// Handle quoted attribute values
-	if b != '"' && b != '\'' && !d.Strict { // Reading as text and not attr as not strict
-		// As non-strict, the end of the attribute might be the closing of the tag >
-		d.ungetc(b)              // not a quote but a byte value
-		return d.text(-1, false) // No quote !
+	if b == '"' || b == '\'' {
+		return d.text(int(b), false)
+	}
+	// Handle unquoted attribute values for strict parsers
+	if d.Strict {
+		d.err = d.syntaxError("unquoted or missing attribute value in element")
+		return nil
 	}
 	// Handle unquoted attribute values for unstrict parsers
+	d.ungetc(b)
+	d.buf.Reset()
 	for {
 		b, ok = d.mustgetc()
 		if !ok {
@@ -890,40 +894,11 @@ func (d *Decoder) attrval() []byte {
 		}
 		// https://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2
 		if 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' ||
-			'0' <= b && b <= '9' || b == '_' || b == ':' || b == '-' ||
-			b == '+' || b == ';' || b == ',' || b == '#' || b == '<' ||
-			b == '>' || b == '/' || b == '.' || b == '!' || b == '\'' {
+			'0' <= b && b <= '9' || b == '_' || b == ':' || b == '-' {
 			d.buf.WriteByte(b)
-		} else if b == '"' {
+		} else {
+			d.ungetc(b)
 			break
-		} else if b == '&' { // Text to escape has been found
-			/* The handling of the buffer buf and the reader r does not allow to read
-			a name value and replacing its value easily. Below is the consequence */
-			if escapeB, ok := d.readEsc(); ok {
-				escapeS := string(escapeB)
-				if r, ok := entity[escapeS]; ok {
-					d.buf.WriteString(string(r))
-				} else {
-					d.buf.WriteString(escapeS)
-				}
-			} else {
-				d.buf.WriteString(string(escapeB)) // Whatever was read is written
-			}
-		} else { // Rules for attribute name include line endings processing
-			switch b {
-			case '\n':
-			case ' ', '\t':
-				d.buf.WriteByte(' ') // Replacing
-			case '\r':
-				b, ok = d.getc()
-				if !(ok && b == '\r') { // Consuming crlf
-					d.ungetc(b)
-				}
-				d.buf.WriteByte(' ') // Replacing
-			default:
-				d.err = d.syntaxError(fmt.Sprintf("invalid character in attribute value: %#x", b))
-				return nil
-			}
 		}
 	}
 	return d.buf.Bytes()
