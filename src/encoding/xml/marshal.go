@@ -369,9 +369,9 @@ func (p *printer) getPrefix(uri string) string {
 // createPrefix finds the name space prefix attribute to use for the given namespace,
 // defining a new prefix if necessary. It returns the prefix.
 // It will attempt to use preferred as the prefix if set.
-func (p *printer) createPrefix(uri, preferred string) string {
+func (p *printer) createPrefix(uri, preferred string) (string, bool) {
 	if prefix := p.getPrefix(uri); prefix != "" {
-		return prefix
+		return prefix, false
 	}
 
 	// Need to define a new name space.
@@ -411,16 +411,18 @@ func (p *printer) createPrefix(uri, preferred string) string {
 
 	p.nsToPrefix[uri] = prefix
 	p.prefixToNS[prefix] = uri
-	/* prints a prefix definition for the URL which had no prefix */
-	p.WriteString(`xmlns:`)
-	p.WriteString(prefix)
-	p.WriteString(`="`)
-	EscapeText(p, []byte(uri))
-	p.WriteByte('"')
 
 	p.prefixes = append(p.prefixes, prefix)
 
-	return prefix
+	return prefix, true
+}
+
+func (p *printer) writePrefixAttr(prefix, uri string) {
+	p.WriteString(`xmlns:`)
+	p.WriteString(prefix)
+	p.WriteString(`="`)
+	p.EscapeString(uri)
+	p.WriteByte('"')
 }
 
 // deleteAttrPrefix removes an attribute name space prefix.
@@ -816,12 +818,16 @@ func (p *printer) writeStart(start *StartElement) error {
 	p.writeIndent(1) // handling relative depth of a tag
 	p.WriteByte('<')
 	if tag.prefix != "" {
+		var prefixCreated bool
+		if tag.xmlns != "" && !spaceDefined {
+			tag.prefix, prefixCreated = p.createPrefix(tag.xmlns, tag.prefix)
+		}
 		p.WriteString(tag.prefix)
 		p.WriteByte(':')
 		p.WriteString(tag.name)
-		if tag.xmlns != "" && !spaceDefined && p.getPrefix(tag.xmlns) == "" {
+		if prefixCreated {
 			p.WriteByte(' ')
-			p.createPrefix(tag.xmlns, tag.prefix)
+			p.writePrefixAttr(tag.prefix, tag.xmlns)
 		}
 	} else if tag.xmlns != "" {
 		p.WriteString(tag.name)
@@ -845,11 +851,10 @@ func (p *printer) writeStart(start *StartElement) error {
 			p.WriteString(xmlnsPrefix)
 			p.WriteByte(':')
 		} else if attrName.xmlns != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
-			prefix := p.getPrefix(attrName.xmlns)
-			if prefix != "" {
-				attrName.prefix = prefix
-			} else {
-				attrName.prefix = p.createPrefix(attrName.xmlns, attrName.prefix)
+			var prefixCreated bool
+			attrName.prefix, prefixCreated = p.createPrefix(attrName.xmlns, attrName.prefix)
+			if prefixCreated {
+				p.writePrefixAttr(attrName.prefix, attrName.xmlns)
 				p.WriteByte(' ')
 			}
 			p.WriteString(attrName.prefix)
