@@ -301,31 +301,37 @@ func (enc *Encoder) Flush() error {
 	return enc.p.Flush()
 }
 
-type tagName struct {
-	space  string
-	local  string
+// xmlTag represents a serialized XML tag, in the form of either:
+// <$name>
+// <$name xmlns="$xmlns">
+// <$prefix:$name>
+// <$prefix:$name xmlns:$prefix="$xmlns">
+// The closing tag should match the prefixed form of the opening tag.
+type xmlTag struct {
+	xmlns  string
 	prefix string
+	name   string
 }
 
-func newTagName(name Name) tagName {
-	t := tagName{space: name.Space}
-	t.prefix, t.local = splitPrefixed(name.Local)
+func newXMLTag(name Name) xmlTag {
+	t := xmlTag{xmlns: name.Space}
+	t.prefix, t.name = splitPrefixed(name.Local)
 	return t
 }
 
-func splitPrefixed(name string) (prefix, local string) {
-	i := strings.Index(name, ":")
-	if i < 1 || i > len(name)-2 {
-		return "", name
+func splitPrefixed(prefixed string) (prefix, name string) {
+	i := strings.Index(prefixed, ":")
+	if i < 1 || i > len(prefixed)-2 {
+		return "", prefixed
 	}
-	return name[:i], name[i+1:]
+	return prefixed[:i], prefixed[i+1:]
 }
 
-func joinPrefixed(prefix, local string) string {
+func joinPrefixed(prefix, name string) string {
 	if prefix == "" {
-		return local
+		return name
 	}
-	return prefix + ":" + local
+	return prefix + ":" + name
 }
 
 type printer struct {
@@ -341,7 +347,7 @@ type printer struct {
 	prefixToNS map[string]string // map prefix -> name space
 	nsToPrefix map[string]string // map name space -> prefix
 	prefixes   []string
-	tags       []tagName
+	tags       []xmlTag
 }
 
 // getPrefix finds the name space prefix attribute to use for the given namespace,
@@ -573,7 +579,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 
 	/* If an xmlname was found, namespace must be overridden */
 	if tinfo.xmlname != nil && start.Name.Space == "" &&
-		len(p.tags) != 0 && p.tags[len(p.tags)-1].space != "" {
+		len(p.tags) != 0 && p.tags[len(p.tags)-1].xmlns != "" {
 		//add attr xmlns="" to override the outer tag namespace
 		start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, ""})
 	}
@@ -715,7 +721,7 @@ func defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElemen
 func (p *printer) marshalInterface(val Marshaler, start StartElement) error {
 	// Push a marker onto the tag stack so that MarshalXML
 	// cannot close the XML tags that it did not open.
-	p.tags = append(p.tags, tagName{})
+	p.tags = append(p.tags, xmlTag{})
 	n := len(p.tags)
 
 	err := val.MarshalXML(p.encoder, start)
@@ -725,7 +731,7 @@ func (p *printer) marshalInterface(val Marshaler, start StartElement) error {
 
 	// Make sure MarshalXML closed all its tags. p.tags[n-1] is the mark.
 	if len(p.tags) > n {
-		return fmt.Errorf("xml: %s.MarshalXML wrote invalid XML: <%s> not closed", receiverType(val), p.tags[len(p.tags)-1].local)
+		return fmt.Errorf("xml: %s.MarshalXML wrote invalid XML: <%s> not closed", receiverType(val), p.tags[len(p.tags)-1].name)
 	}
 	p.tags = p.tags[:n-1]
 	return nil
@@ -754,7 +760,7 @@ func (p *printer) writeStart(start *StartElement) error {
 	p.markPrefix()
 
 	// Split out the prefix (if any) from start.Name.Local
-	tag := newTagName(start.Name)
+	tag := newXMLTag(start.Name)
 
 	/* The attribute was not added if no XMLName field existed. */
 	var spaceDefined bool
@@ -767,7 +773,7 @@ func (p *printer) writeStart(start *StartElement) error {
 				// Attributes values which are namespaces are searched to avoid reprinting the domain
 				// The first attribute with a value == to start tag token will be the prefix used
 				// Print the space definition if the prefix is used
-				if attr.Name.Space == xmlnsPrefix && attr.Name.Local != "" && attr.Value == tag.space {
+				if attr.Name.Space == xmlnsPrefix && attr.Name.Local != "" && attr.Value == tag.xmlns {
 					// this is not enough if you return End tag with url in space and not the prefix
 					tag.prefix = attr.Name.Local // if you skip printing, the value of the prefix does not display
 					p.prefixes = append(p.prefixes, tag.prefix)
@@ -777,7 +783,7 @@ func (p *printer) writeStart(start *StartElement) error {
 			}
 		}
 		if tag.prefix == "" {
-			tag.prefix = p.getPrefix(tag.space)
+			tag.prefix = p.getPrefix(tag.xmlns)
 			if tag.prefix != "" {
 				spaceDefined = true
 			}
@@ -785,7 +791,7 @@ func (p *printer) writeStart(start *StartElement) error {
 		if tag.prefix == "" {
 			// Walk up the tree to see if a default namespace is already defined (without a prefix)
 			for i := len(p.tags) - 1; i >= 0; i-- {
-				if p.tags[i].space == tag.space {
+				if p.tags[i].xmlns == tag.xmlns {
 					if p.tags[i].prefix == "" {
 						spaceDefined = true
 					}
@@ -796,7 +802,7 @@ func (p *printer) writeStart(start *StartElement) error {
 		if !spaceDefined {
 			for _, attr := range start.Attr {
 				// attributes values which are namespaces are searched to avoid reprinting the default
-				if attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix && attr.Value == tag.space {
+				if attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix && attr.Value == tag.xmlns {
 					spaceDefined = true
 					break // the first attribute which is a default declaration that matches is kept
 				}
@@ -812,20 +818,20 @@ func (p *printer) writeStart(start *StartElement) error {
 	if tag.prefix != "" {
 		p.WriteString(tag.prefix)
 		p.WriteByte(':')
-		p.WriteString(tag.local)
-		if tag.space != "" && !spaceDefined && p.getPrefix(tag.space) == "" {
+		p.WriteString(tag.name)
+		if tag.xmlns != "" && !spaceDefined && p.getPrefix(tag.xmlns) == "" {
 			p.WriteByte(' ')
-			p.createPrefix(tag.space, tag.prefix)
+			p.createPrefix(tag.xmlns, tag.prefix)
 		}
-	} else if tag.space != "" {
-		p.WriteString(tag.local)
+	} else if tag.xmlns != "" {
+		p.WriteString(tag.name)
 		if !spaceDefined {
 			p.WriteString(` xmlns="`)
-			p.EscapeString(tag.space)
+			p.EscapeString(tag.xmlns)
 			p.WriteByte('"')
 		}
 	} else {
-		p.WriteString(tag.local)
+		p.WriteString(tag.name)
 	}
 
 	// Attributes
@@ -833,24 +839,24 @@ func (p *printer) writeStart(start *StartElement) error {
 		if attr.Name.Local == "" {
 			continue
 		}
-		attrName := newTagName(attr.Name)
+		attrName := newXMLTag(attr.Name)
 		p.WriteByte(' ')
-		if attrName.space == xmlnsPrefix { // printing prefix name.Local xmlns:{.Local}={.Value}
+		if attrName.xmlns == xmlnsPrefix { // printing prefix name.Local xmlns:{.Local}={.Value}
 			p.WriteString(xmlnsPrefix)
 			p.WriteByte(':')
-		} else if attrName.space != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
-			prefix := p.getPrefix(attrName.space)
+		} else if attrName.xmlns != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
+			prefix := p.getPrefix(attrName.xmlns)
 			if prefix != "" {
 				attrName.prefix = prefix
 			} else {
-				attrName.prefix = p.createPrefix(attrName.space, attrName.prefix)
+				attrName.prefix = p.createPrefix(attrName.xmlns, attrName.prefix)
 				p.WriteByte(' ')
 			}
 			p.WriteString(attrName.prefix)
 			p.WriteByte(':')
 		}
 		// When space is empty, only writing .Local=.Value which will also be xmlns=".Value"
-		p.WriteString(attrName.local)
+		p.WriteString(attrName.name)
 		p.WriteString(`="`)
 		p.EscapeString(attr.Value)
 		p.WriteByte('"')
@@ -863,20 +869,20 @@ func (p *printer) writeEnd(name Name) error {
 	if name.Local == "" {
 		return fmt.Errorf("xml: end tag with no name")
 	}
-	if len(p.tags) == 0 || p.tags[len(p.tags)-1].local == "" {
+	if len(p.tags) == 0 || p.tags[len(p.tags)-1].name == "" {
 		return fmt.Errorf("xml: end tag </%s> without start tag", name.Local)
 	}
 	tag := p.tags[len(p.tags)-1]
-	end := newTagName(name)
+	end := newXMLTag(name)
 	if tag != end { // the end tag must check the prefix value when there is one
 		if tag.prefix != "" && end.prefix != "" { // Tag prefixes do not match
-			return fmt.Errorf("xml: end prefix </%s:%s> does not match start prefix <%s:%s>", end.prefix, end.local, tag.prefix, tag.local)
+			return fmt.Errorf("xml: end prefix </%s:%s> does not match start prefix <%s:%s>", end.prefix, end.name, tag.prefix, tag.name)
 		}
-		if tag.local != end.local { // Tag names do not match
-			return fmt.Errorf("xml: end tag </%s> does not match start tag <%s>", end.local, tag.local)
+		if tag.name != end.name { // Tag names do not match
+			return fmt.Errorf("xml: end tag </%s> does not match start tag <%s>", end.name, tag.name)
 		}
-		if tag.space != end.space { // Namespaces do not match
-			return fmt.Errorf("xml: end space </%s> does not match start space <%s>", end.space, tag.space)
+		if tag.xmlns != end.xmlns { // Namespaces do not match
+			return fmt.Errorf("xml: end space </%s> does not match start space <%s>", end.xmlns, tag.xmlns)
 		}
 	}
 	p.writeIndent(-1)
@@ -886,7 +892,7 @@ func (p *printer) writeEnd(name Name) error {
 		p.WriteString(tag.prefix)
 		p.WriteByte(':')
 	}
-	p.WriteString(tag.local)
+	p.WriteString(tag.name)
 	p.WriteByte('>')
 	p.tags = p.tags[:len(p.tags)-1]
 	p.popPrefixes()
