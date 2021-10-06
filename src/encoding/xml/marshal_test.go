@@ -541,6 +541,16 @@ type DomainCheck struct {
 	DomainNames []string `xml:"urn:ietf:params:xml:ns:domain-1.0 domain:name,omitempty"`
 }
 
+type SecureEnvelope struct {
+	XMLName struct{}       `xml:"urn:test:secure-1.0 sec:envelope"`
+	Message *SecureMessage `xml:"urn:test:message-1.0 msg,omitempty"`
+}
+
+type SecureMessage struct {
+	Body   string `xml:"urn:test:message-1.0 body,omitempty"`
+	Signer string `xml:"urn:test:secure-1.0 sec:signer,attr,omitempty"`
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
@@ -1698,6 +1708,18 @@ var marshalTests = []struct {
 	{
 		ExpectXML: `<epp xmlns="urn:ietf:params:xml:ns:epp-1.0"><command><check><domain:check xmlns:domain="urn:ietf:params:xml:ns:domain-1.0"><domain:name>golang.org</domain:name><domain:name>go.dev</domain:name></domain:check></check></command></epp>`,
 		Value:     &EPP{Command: &Command{Check: &Check{DomainCheck: &DomainCheck{DomainNames: []string{"golang.org", "go.dev"}}}}},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"></sec:envelope>`,
+		Value:     &SecureEnvelope{},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0"></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{}},
+	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0"><body>Hello, world.</body></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{Body: "Hello, world."}},
 	},
 }
 

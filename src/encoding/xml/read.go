@@ -423,11 +423,12 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		// Validate and assign element name.
 		if tinfo.xmlname != nil {
 			finfo := tinfo.xmlname
-			if finfo.name != "" && finfo.name != start.Name.Local {
-				return UnmarshalError("expected element type <" + finfo.name + "> but have <" + start.Name.Local + ">")
+			_, local := splitPrefixed(finfo.name)
+			if local != "" && local != start.Name.Local {
+				return UnmarshalError("expected element type <" + local + "> but have <" + start.Name.Local + ">")
 			}
 			if finfo.xmlns != "" && finfo.xmlns != start.Name.Space {
-				e := "expected element <" + finfo.name + "> in name space " + finfo.xmlns + " but have "
+				e := "expected element <" + local + "> in name space " + finfo.xmlns + " but have "
 				if start.Name.Space == "" {
 					e += "no name space"
 				} else {

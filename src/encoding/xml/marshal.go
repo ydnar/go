@@ -518,10 +518,6 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		xmlname := tinfo.xmlname
 		if xmlname.name != "" {
 			start.Name.Space, start.Name.Local = xmlname.xmlns, xmlname.name
-			// .Space is equivalent to xmlns=".Space" so adding the attribute
-			if start.Name.Space != "" {
-				start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, start.Name.Space})
-			}
 		} else {
 			fv := xmlname.value(val, dontInitNilPointers)
 			if v, ok := fv.Interface().(Name); ok && v.Local != "" {
@@ -780,16 +776,6 @@ func (p *printer) writeStart(start *StartElement) error {
 			}
 		}
 		if tag.prefix == "" {
-			// no prefix was found for the space of the tag name
-			// the tag name Space is then considered as the default xmlns=".Space"
-			for _, attr := range start.Attr {
-				// attributes values which are namespaces are searched to avoid reprinting the default
-				if attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix && attr.Value == tag.space {
-					spaceDefined = true
-				}
-				break // the first attribute which is a default declaration that matches is kept
-			}
-
 			// Walk up the tree to see if a default namespace is already defined (without a prefix)
 			for i := len(p.tags) - 1; i >= 0; i-- {
 				if p.tags[i].space == tag.space {
@@ -797,6 +783,15 @@ func (p *printer) writeStart(start *StartElement) error {
 						spaceDefined = true
 					}
 					break
+				}
+			}
+		}
+		if !spaceDefined {
+			for _, attr := range start.Attr {
+				// attributes values which are namespaces are searched to avoid reprinting the default
+				if attr.Name.Space == "" && attr.Name.Local == xmlnsPrefix && attr.Value == tag.space {
+					spaceDefined = true
+					break // the first attribute which is a default declaration that matches is kept
 				}
 			}
 		}
