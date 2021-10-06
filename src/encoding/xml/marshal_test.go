@@ -1052,6 +1052,10 @@ var marshalTests = []struct {
 		Value:     &OmitAttrTest{},
 		ExpectXML: `<OmitAttrTest></OmitAttrTest>`,
 	},
+	{
+		Value:     &OmitAttrTest{Str: "gopher@golang.org"},
+		ExpectXML: `<OmitAttrTest Str="gopher@golang.org"></OmitAttrTest>`,
+	},
 
 	// pointer fields
 	{
