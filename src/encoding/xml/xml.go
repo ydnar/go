@@ -921,7 +921,7 @@ func (d *Decoder) attrval() []byte {
 				}
 				d.buf.WriteByte(' ') // Replacing
 			default:
-				d.err = d.syntaxError("invalid character in attribute value")
+				d.err = d.syntaxError(fmt.Sprintf("invalid character in attribute value: %#x", b))
 				return nil
 			}
 		}
