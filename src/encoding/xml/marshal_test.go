@@ -551,6 +551,11 @@ type SecureMessage struct {
 	Signer string `xml:"urn:test:secure-1.0 sec:signer,attr,omitempty"`
 }
 
+type NamespacedNested struct {
+	XMLName struct{} `xml:"urn:test:nested-1.0 nested"`
+	Value   string   `xml:"urn:test:nested-1.0 nested:wrapper>nested:value"`
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
@@ -1728,6 +1733,10 @@ var marshalTests = []struct {
 	{
 		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0" sec:signer="gopher@golang.org"><body>Thanks</body></msg></sec:envelope>`,
 		Value:     &SecureEnvelope{Message: &SecureMessage{Body: "Thanks", Signer: "gopher@golang.org"}},
+	},
+	{
+		ExpectXML: `<nested xmlns="urn:test:nested-1.0"><wrapper><nested:value xmlns:nested="urn:test:nested-1.0">You’re welcome!</nested:value></wrapper></nested>`,
+		Value:     &NamespacedNested{Value: "You’re welcome!"},
 	},
 }
 
