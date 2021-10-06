@@ -1881,16 +1881,16 @@ func TestUnmarshal(t *testing.T) {
 
 			if err != nil {
 				if test.UnmarshalError == "" {
-					t.Errorf("unmarshal(%#v): %s", test.ExpectXML, err)
+					t.Errorf("unmarshal(%s): %s", test.ExpectXML, err)
 					return
 				}
 				if !strings.Contains(err.Error(), test.UnmarshalError) {
-					t.Errorf("unmarshal(%#v): %s, want %q", test.ExpectXML, err, test.UnmarshalError)
+					t.Errorf("unmarshal(%s): %s, want %q", test.ExpectXML, err, test.UnmarshalError)
 				}
 				return
 			}
 			if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
-				t.Errorf("unmarshal(%q):\nhave %#v\nwant %#v", test.ExpectXML, got, want)
+				t.Errorf("unmarshal(%s):\nhave %#v\nwant %#v", test.ExpectXML, got, want)
 			}
 		})
 	}
