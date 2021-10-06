@@ -1248,22 +1248,6 @@ func (d *Decoder) readName() (ok bool) {
 	return true
 }
 
-func (d *Decoder) readEsc() (escS []byte, ok bool) {
-	var b byte
-	var readEsc []byte
-	for {
-		if b, ok = d.getc(); !ok {
-			return readEsc, true // Returning default probably when true is correct. Unnamed attribute is allowed
-		}
-		if b < utf8.RuneSelf && !isNameByte(b) {
-			break
-		} else {
-			readEsc = append(readEsc, b)
-		}
-	}
-	return readEsc, true
-}
-
 func isNameByte(c byte) bool {
 	return 'A' <= c && c <= 'Z' ||
 		'a' <= c && c <= 'z' ||
