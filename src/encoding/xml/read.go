@@ -462,10 +462,11 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 			any := -1
 			for i := range tinfo.fields {
 				finfo := &tinfo.fields[i]
+				_, local := splitPrefixed(finfo.name)
 				switch finfo.flags & fMode {
 				case fAttr:
 					strv := finfo.value(sv, initNilPointers)
-					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
+					if a.Name.Local == local && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
 						if err := d.unmarshalAttr(strv, a); err != nil {
 							return err
 						}

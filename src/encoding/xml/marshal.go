@@ -826,21 +826,24 @@ func (p *printer) writeStart(start *StartElement) error {
 		if attr.Name.Local == "" {
 			continue
 		}
+		attrName := newTagName(attr.Name)
 		p.WriteByte(' ')
-		if attr.Name.Space == xmlnsPrefix { // printing prefix name.Local xmlns:{.Local}={.Value}
+		if attrName.space == xmlnsPrefix { // printing prefix name.Local xmlns:{.Local}={.Value}
 			p.WriteString(xmlnsPrefix)
 			p.WriteByte(':')
-		} else if attr.Name.Space != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
-			prefix := p.getPrefix(attr.Name.Space)
-			if prefix == "" {
-				prefix = p.createPrefix(attr.Name.Space, "")
+		} else if attrName.space != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
+			prefix := p.getPrefix(attrName.space)
+			if prefix != "" {
+				attrName.prefix = prefix
+			} else {
+				attrName.prefix = p.createPrefix(attrName.space, attrName.prefix)
 				p.WriteByte(' ')
 			}
-			p.WriteString(prefix)
+			p.WriteString(attrName.prefix)
 			p.WriteByte(':')
 		}
 		// When space is empty, only writing .Local=.Value which will also be xmlns=".Value"
-		p.WriteString(attr.Name.Local)
+		p.WriteString(attrName.local)
 		p.WriteString(`="`)
 		p.EscapeString(attr.Value)
 		p.WriteByte('"')

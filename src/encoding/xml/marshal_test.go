@@ -1721,6 +1721,10 @@ var marshalTests = []struct {
 		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0"><body>Hello, world.</body></msg></sec:envelope>`,
 		Value:     &SecureEnvelope{Message: &SecureMessage{Body: "Hello, world."}},
 	},
+	{
+		ExpectXML: `<sec:envelope xmlns:sec="urn:test:secure-1.0"><msg xmlns="urn:test:message-1.0" sec:signer="gopher@golang.org"><body>Thanks</body></msg></sec:envelope>`,
+		Value:     &SecureEnvelope{Message: &SecureMessage{Body: "Thanks", Signer: "gopher@golang.org"}},
+	},
 }
 
 func TestMarshal(t *testing.T) {
