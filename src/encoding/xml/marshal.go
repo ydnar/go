@@ -337,13 +337,13 @@ type printer struct {
 	*bufio.Writer
 	encoder    *Encoder
 	seq        int
-	indent     string // line identation
-	prefix     string // line prefix
+	indent     string
+	prefix     string
 	depth      int
 	indentedIn bool
 	putNewline bool
-	prefixToNS map[string]string // map prefix -> name space
-	nsToPrefix map[string]string // map name space -> prefix
+	prefixToNS map[string]string // Map prefix -> namespace
+	nsToPrefix map[string]string // Map namespace -> prefix
 	prefixes   []string
 	tags       []xmlTag
 }
@@ -580,7 +580,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	/* If an xmlname was found, namespace must be overridden */
 	if tinfo.xmlname != nil && start.Name.Space == "" &&
 		len(p.tags) != 0 && p.tags[len(p.tags)-1].xmlns != "" {
-		//add attr xmlns="" to override the outer tag namespace
+		// Add attr xmlns="" to override the outer tag namespace
 		start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, ""})
 	}
 	/* */
