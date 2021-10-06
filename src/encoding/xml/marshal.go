@@ -1115,6 +1115,9 @@ func (p *printer) cachedWriteError() error {
 }
 
 func (p *printer) writeIndent(depthDelta int) {
+	if len(p.prefix) == 0 && len(p.indent) == 0 {
+		return
+	}
 	if depthDelta < 0 {
 		p.depth--
 		if p.indentedIn {
@@ -1123,7 +1126,7 @@ func (p *printer) writeIndent(depthDelta int) {
 		}
 		p.indentedIn = false
 	}
-	if p.putNewline && (len(p.indent) > 0 || len(p.prefix) > 0) {
+	if p.putNewline {
 		p.WriteByte('\n')
 	} else {
 		p.putNewline = true
