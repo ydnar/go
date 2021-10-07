@@ -1738,6 +1738,13 @@ var marshalTests = []struct {
 		ExpectXML: `<nested xmlns="urn:test:nested-1.0"><wrapper><nested:value xmlns:nested="urn:test:nested-1.0">You’re welcome!</nested:value></wrapper></nested>`,
 		Value:     &NamespacedNested{Value: "You’re welcome!"},
 	},
+	{
+		ExpectXML: `<space:name><space:value>value</space:value></space:name>`,
+		Value: &struct {
+			XMLName struct{} `xml:"space:name"`
+			Value   string   `xml:"space:value"`
+		}{Value: "value"},
+	},
 }
 
 func TestMarshal(t *testing.T) {
