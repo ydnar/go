@@ -843,23 +843,23 @@ func (p *printer) writeStart(start *StartElement) error {
 		if attr.Name.Local == "" {
 			continue
 		}
-		attrName := newXMLTag(attr.Name)
+		prefix, local := splitPrefixed(attr.Name.Local)
 		p.WriteByte(' ')
-		if attrName.xmlns == xmlnsPrefix { // printing prefix name.Local xmlns:{.Local}={.Value}
+		if attr.Name.Space == xmlnsPrefix { // printing prefix name.Local xmlns:{.Local}={.Value}
 			p.WriteString(xmlnsPrefix)
 			p.WriteByte(':')
-		} else if attrName.xmlns != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
+		} else if attr.Name.Space != "" { // not a name space {.Space}:{.Local}={.Value} and .Local is not xmlns
 			var prefixCreated bool
-			attrName.prefix, prefixCreated = p.createPrefix(attrName.xmlns, attrName.prefix)
+			prefix, prefixCreated = p.createPrefix(attr.Name.Space, prefix)
 			if prefixCreated {
-				p.writePrefixAttr(attrName.prefix, attrName.xmlns)
+				p.writePrefixAttr(prefix, attr.Name.Space)
 				p.WriteByte(' ')
 			}
-			p.WriteString(attrName.prefix)
+			p.WriteString(prefix)
 			p.WriteByte(':')
 		}
 		// When space is empty, only writing .Local=.Value which will also be xmlns=".Value"
-		p.WriteString(attrName.name)
+		p.WriteString(local)
 		p.WriteString(`="`)
 		p.EscapeString(attr.Value)
 		p.WriteByte('"')
