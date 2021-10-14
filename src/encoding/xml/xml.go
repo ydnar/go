@@ -361,6 +361,7 @@ const (
 func (d *Decoder) translate(n *Name, isElementName bool) {
 	switch {
 	case n.Space == xmlnsPrefix:
+		n.Space = xmlnsURL
 		return
 	case n.Space == "" && !isElementName:
 		return
