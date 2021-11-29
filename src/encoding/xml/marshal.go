@@ -546,9 +546,13 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		start.Name.Local = name
 	}
 
-	// Iterate over struct fields
+	// Attributes
 	for i := range tinfo.fields {
 		finfo := &tinfo.fields[i]
+		if finfo.flags&fAttr == 0 {
+			continue
+		}
+
 		fv := finfo.value(val, dontInitNilPointers)
 
 		if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
@@ -559,30 +563,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 			continue
 		}
 
-		// Define namespace prefix attributes, if necessary.
-		// The namespace for the start tag will be defined in writeStart.
-		if finfo.xmlns != "" && finfo.xmlns != start.Name.Space && finfo.prefix != "" && finfo.prefix != p.getPrefix(finfo.xmlns) {
-			var prefixDefined bool
-			for _, attr := range start.Attr {
-				if attr.Name.Space == xmlnsURL && attr.Name.Local != "" && attr.Value == finfo.xmlns {
-					prefixDefined = true
-					break
-				}
-			}
-			if !prefixDefined {
-				start.Attr = append(start.Attr, Attr{
-					Name:  Name{xmlnsURL, finfo.prefix},
-					Value: finfo.xmlns,
-				})
-			}
-		}
-
-		// Attributes
-		if finfo.flags&fAttr != 0 {
-			name := Name{finfo.xmlns, joinPrefixed(finfo.prefix, finfo.name)}
-			if err := p.marshalAttr(&start, name, fv); err != nil {
-				return err
-			}
+		name := Name{finfo.xmlns, joinPrefixed(finfo.prefix, finfo.name)}
+		if err := p.marshalAttr(&start, name, fv); err != nil {
+			return err
 		}
 	}
 
